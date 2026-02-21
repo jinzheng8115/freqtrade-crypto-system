@@ -30,7 +30,9 @@
 
 ### English
 
-This paper presents a systematic approach to cryptocurrency trading using the Freqtrade framework. We developed and optimized Supertrend-based strategies for both spot and futures markets, incorporating multiple technical indicators (ADX, EMA, RSI, Supertrend) for trend confirmation. Through extensive backtesting on 90-173 days of historical data from OKX exchange, we achieved significant improvements in risk-adjusted returns. Our methodology includes: (1) ADX filtering for trend strength validation, (2) Multi-timeframe analysis (15m for trading, 1h for optimization), (3) Dynamic parameter optimization using Sharpe ratio, and (4) Comprehensive monitoring with hourly status reports. The system demonstrates that conservative leverage (2x) combined with strict trend filtering can achieve stable performance even in highly volatile cryptocurrency markets.
+**This project is built on top of the Freqtrade framework**, an open-source cryptocurrency trading bot. We developed and optimized Supertrend-based strategies for both spot and futures markets, incorporating multiple technical indicators (ADX, EMA, RSI, Supertrend) for trend confirmation. Through extensive backtesting on 90-173 days of historical data from OKX exchange, we achieved significant improvements in risk-adjusted returns. Our methodology includes: (1) ADX filtering for trend strength validation, (2) Multi-timeframe analysis (15m for trading, 1h for optimization), (3) Dynamic parameter optimization using Sharpe ratio, and (4) Comprehensive monitoring with hourly status reports. The system demonstrates that conservative leverage (2x) combined with strict trend filtering can achieve stable performance even in highly volatile cryptocurrency markets.
+
+**Key Point**: Freqtrade provides the infrastructure (exchange connectivity, order execution, data management, backtesting), while our strategies provide the trading logic (entry/exit signals, risk management).
 
 ### 中文
 
@@ -42,7 +44,64 @@ This paper presents a systematic approach to cryptocurrency trading using the Fr
 
 ## 1. Introduction / 引言
 
-### 1.1 Background / 研究背景
+### 1.1 Project Architecture / 项目架构
+
+**This is NOT a standalone trading system**. It is a **strategy layer** built on top of **Freqtrade framework**.
+
+**这不是一个独立的交易系统**。它是基于 **Freqtrade 框架**构建的**策略层**。
+
+#### Three-Layer Architecture / 三层架构
+
+```
+┌─────────────────────────────────────────┐
+│   Layer 3: Configuration                │
+│   配置层（用户的 API Key、资金、风险）     │
+│   - API credentials                     │
+│   - Risk parameters                     │
+│   - Trading pairs                       │
+└─────────────────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────┐
+│   Layer 2: Trading Strategies (本项目)   │
+│   策略层（我们的交易逻辑）                │
+│   - SupertrendStrategy_Smart.py         │
+│   - SupertrendFuturesStrategyV4.py      │
+│   继承自: Freqtrade IStrategy           │
+└─────────────────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────┐
+│   Layer 1: Freqtrade Framework ⭐       │
+│   框架层（Freqtrade 官方框架）            │
+│   - 交易所接口（OKX API）                │
+│   - 订单执行                             │
+│   - 数据管理                             │
+│   - 回测引擎                             │
+│   - 风险管理                             │
+│   Docker: freqtradeorg/freqtrade:stable │
+└─────────────────────────────────────────┘
+```
+
+**Dependencies / 依赖关系**:
+- **Layer 1 (Freqtrade)**: MUST be deployed first via Docker
+- **Layer 2 (Our Strategies)**: Loaded into Freqtrade, provides trading signals
+- **Layer 3 (Configuration)**: User-specific parameters (API keys, capital)
+
+**What Freqtrade Provides / Freqtrade 提供什么**:
+✅ Exchange connectivity (OKX API integration)
+✅ Order execution (buy, sell, stop loss, take profit)
+✅ Data management (historical data download, real-time quotes)
+✅ Backtesting engine (test strategies on historical data)
+✅ Risk management (position sizing, leverage control)
+✅ Database persistence (trade history storage)
+
+**What Our Strategies Provide / 我们的策略提供什么**:
+✅ Entry signals (when to buy/sell)
+✅ Exit signals (when to close positions)
+✅ Technical indicators (Supertrend, EMA, ADX, RSI)
+✅ Trend confirmation (multi-indicator filtering)
+✅ Risk parameters (optimized for different market conditions)
+
+### 1.2 Background / 研究背景
 
 The cryptocurrency market presents unique challenges for algorithmic trading:
 
@@ -90,7 +149,26 @@ This project aims to:
 
 ## 2. System Architecture / 系统架构
 
-### 2.1 Technology Stack / 技术栈
+### 2.1 Prerequisites / 前置条件
+
+**⚠️ IMPORTANT: This project requires Freqtrade framework to run.**
+
+**⚠️ 重要：本项目需要先部署 Freqtrade 框架才能运行。**
+
+```bash
+# Freqtrade is automatically deployed via Docker
+# Freqtrade 通过 Docker 自动部署
+docker-compose up -d  # This pulls freqtradeorg/freqtrade:stable image
+```
+
+**Framework Dependency / 框架依赖**:
+- **Freqtrade Version**: 2026.1 (stable)
+- **Docker Image**: freqtradeorg/freqtrade:stable
+- **Installation**: Automatic via docker-compose.yml
+
+**No manual Freqtrade installation needed** - Docker handles everything!
+
+### 2.2 Technology Stack / 技术栈
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -114,15 +192,18 @@ This project aims to:
          └─────────────────────────────┘
 ```
 
-### 2.2 Core Components / 核心组件
+### 2.3 Core Components / 核心组件
 
-| Component | Description | Technology |
-|-----------|-------------|------------|
-| **Trading Engine** | Freqtrade 2026.1 | Python 3.11 |
-| **Database** | Trade persistence | SQLite |
-| **Monitoring** | Hourly status reports | Bash + OpenClaw |
-| **Data Source** | Real-time market data | OKX API |
-| **Deployment** | Containerized services | Docker Compose |
+| Layer | Component | Description | Technology |
+|-------|-----------|-------------|------------|
+| **1** | **Freqtrade Framework** | Trading infrastructure | Docker Image |
+| **1** | **Exchange Integration** | OKX API connectivity | Freqtrade built-in |
+| **1** | **Order Execution** | Buy/sell/stop loss | Freqtrade built-in |
+| **1** | **Backtesting Engine** | Strategy testing | Freqtrade built-in |
+| **2** | **Spot Strategy** | SupertrendStrategy_Smart | Our contribution |
+| **2** | **Futures Strategy** | SupertrendFuturesStrategyV4 | Our contribution |
+| **3** | **Configuration** | User parameters | JSON files |
+| **3** | **Monitoring** | Hourly status reports | Bash + OpenClaw |
 
 | 组件 | 描述 | 技术 |
 |------|------|------|
@@ -136,23 +217,27 @@ This project aims to:
 
 ```
 freqtrade-crypto-system/
-├── strategies/                    # Trading strategies
+├── strategies/                    # Trading strategies (Layer 2)
 │   ├── SupertrendStrategy_Smart.py      # Spot strategy (ADX optimized)
 │   └── SupertrendFuturesStrategyV4.py   # Futures strategy (15m optimized)
 ├── scripts/                       # Utility scripts
 │   ├── check-status-with-push.sh        # Monitoring script
 │   └── convert_data.py                   # Data conversion
-├── config/                        # Configuration files
-│   ├── config_spot.json                  # Spot bot config
-│   └── config_futures.json               # Futures bot config
+├── config/                        # Configuration templates (Layer 3)
+│   ├── config_spot.json.example         # Spot bot config template
+│   └── config_futures.json.example      # Futures bot config template
 ├── research/                      # Research and analysis
 │   ├── optimization-reports/
 │   └── data-analysis/
 ├── docs/                          # Documentation
+│   ├── ARCHITECTURE.md                  # Architecture explanation ⭐
 │   ├── system-setup.md
 │   ├── strategy-guide.md
 │   └── api-reference.md
 ├── README.md                      # This file
+├── QUICKSTART.md                  # 5-minute deployment guide
+├── setup.sh                       # Automated setup script
+├── docker-compose.yml             # Freqtrade deployment (Layer 1)
 └── LICENSE                        # MIT License
 ```
 
