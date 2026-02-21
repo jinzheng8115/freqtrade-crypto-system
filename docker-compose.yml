@@ -1,0 +1,32 @@
+version: '3'
+
+services:
+  freqtrade-spot:
+    image: freqtradeorg/freqtrade:stable
+    container_name: freqtrade-spot
+    volumes:
+      - ./user_data:/freqtrade/user_data
+    ports:
+      - "8081:8081"
+    command: >
+      trade
+      --logfile /freqtrade/user_data/logs/freqtrade-spot.log
+      --db-url sqlite:////freqtrade/user_data/tradesv3_spot.sqlite
+      --config /freqtrade/user_data/config_spot.json
+      --strategy SupertrendStrategy_Smart
+    restart: unless-stopped
+
+  freqtrade-futures:
+    image: freqtradeorg/freqtrade:stable
+    container_name: freqtrade-futures
+    volumes:
+      - ./user_data:/freqtrade/user_data
+    ports:
+      - "8080:8080"
+    command: >
+      trade
+      --logfile /freqtrade/user_data/logs/freqtrade-futures.log
+      --db-url sqlite:////freqtrade/user_data/tradesv3_futures.sqlite
+      --config /freqtrade/user_data/config_futures.json
+      --strategy SupertrendFuturesStrategyV4
+    restart: unless-stopped

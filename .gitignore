@@ -1,0 +1,38 @@
+# Freqtrade Data
+user_data/data/
+user_data/logs/
+*.sqlite
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config (keep examples)
+config/config_spot.json
+config/config_futures.json
+!config/*.example
+
+# Sensitive
+*.pem
+*.key
+credentials.json
