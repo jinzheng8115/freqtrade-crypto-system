@@ -1,0 +1,34 @@
+{
+  "max_open_trades": 2,
+  "stake_currency": "USDT",
+  "stake_amount": 400,
+  "dry_run": true,
+  "trading_mode": "futures",
+  "margin_mode": "isolated",
+  "exchange": {
+    "name": "okx",
+    "key": "YOUR_API_KEY_HERE",
+    "secret": "YOUR_API_SECRET_HERE",
+    "ccxt_config": {
+      "options": {
+        "defaultType": "swap"
+      }
+    },
+    "ccxt_async_config": {
+      "options": {
+        "defaultType": "swap"
+      }
+    }
+  },
+  "pairlists": [
+    {
+      "method": "StaticPairList"
+    }
+  ],
+  "pairs": [
+    "BTC/USDT:USDT",
+    "ETH/USDT:USDT",
+    "SOL/USDT:USDT",
+    "DOGE/USDT:USDT"
+  ]
+}
