@@ -1,0 +1,7 @@
+FROM freqtradeorg/freqtrade:stable
+
+# 安装 technical 库
+RUN pip install --no-cache-dir technical
+
+# 也可以安装其他需要的库
+# RUN pip install --no-cache-dir pandas-ta

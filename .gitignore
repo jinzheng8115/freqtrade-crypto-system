@@ -1,0 +1,55 @@
+# 敏感信息
+user_data/config_futures.json
+user_data/config_spot.json
+*.json.bak
+
+# 数据文件
+user_data/data/
+*.pkl
+*.sqlite
+*.sqlite-journal
+
+# 日志
+user_data/logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 优化结果 (包含回测数据)
+user_data/hyperopt_results/
+user_data/notebooks/
+user_data/plot/

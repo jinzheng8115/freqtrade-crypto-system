@@ -1,0 +1,17 @@
+{
+    "strategy_name": "SupertrendFuturesStrategyV2",
+    "buy_params": {
+        "adx_threshold": 24,
+        "atr_multiplier": 3.821,
+        "atr_period": 26,
+        "ema_fast": 19,
+        "ema_slow": 49
+    },
+    "optimize_time": "2026-02-20",
+    "performance": {
+        "trades": 30,
+        "win_rate": 63.3,
+        "total_profit_pct": -3.39
+    },
+    "notes": "胜率高但止损太紧，需要放宽止损到7%"
+}

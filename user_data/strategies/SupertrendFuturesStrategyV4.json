@@ -1,0 +1,30 @@
+{
+  "strategy_name": "SupertrendFuturesStrategyV4",
+  "params": {
+    "roi": {
+      "0": 0.06
+    },
+    "stoploss": {
+      "stoploss": -0.03
+    },
+    "trailing": {
+      "trailing_stop": true,
+      "trailing_stop_positive": 0.02,
+      "trailing_stop_positive_offset": 0.03,
+      "trailing_only_offset_is_reached": true
+    },
+    "max_open_trades": {
+      "max_open_trades": 2
+    },
+    "buy": {
+      "adx_threshold_long": 33,
+      "adx_threshold_short": 23,
+      "atr_multiplier": 2.884,
+      "atr_period": 11,
+      "ema_fast": 48,
+      "ema_slow": 151
+    }
+  },
+  "ft_stratparam_v": 1,
+  "export_time": "2026-02-22 01:19:12.888637+00:00"
+}

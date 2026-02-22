@@ -1,0 +1,17 @@
+{
+    "strategy_name": "SupertrendStrategyV2",
+    "buy_params": {
+        "adx_threshold": 35,
+        "atr_multiplier": 3.936,
+        "atr_period": 28,
+        "ema_fast": 17,
+        "ema_slow": 49,
+        "rsi_threshold": 70
+    },
+    "optimize_time": "2026-02-20",
+    "performance": {
+        "trades": 8,
+        "win_rate": 50,
+        "total_profit_pct": 1.15
+    }
+}

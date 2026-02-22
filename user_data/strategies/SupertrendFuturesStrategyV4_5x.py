@@ -1,0 +1,9 @@
+# SupertrendFuturesStrategyV4_5x - 5倍杠杆测试版
+# 仅用于测试杠杆影响
+
+import sys
+sys.path.insert(0, '/freqtrade/user_data/strategies')
+from SupertrendFuturesStrategyV4 import SupertrendFuturesStrategyV4
+
+class SupertrendFuturesStrategyV4_5x(SupertrendFuturesStrategyV4):
+    leverage_default = 5  # 5倍杠杆
