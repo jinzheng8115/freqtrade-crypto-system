@@ -1,7 +1,7 @@
-# SupertrendFuturesStrategyV5 - 30m 优化版 + Phase 1 改进
-# 更新时间: 2026-02-22 10:15
+# SupertrendFuturesStrategyV5_1 - 平衡优化版
+# 更新时间: 2026-02-22 12:00
 # 优化数据: 90 天 30m 数据
-# 改进: 分批止盈、RSI过滤加强、动态仓位
+# 改进: 放宽过滤、延后止盈、平衡动态仓位
 
 import numpy as np
 import pandas as pd
@@ -18,47 +18,51 @@ import talib.abstract as ta
 logger = logging.getLogger(__name__)
 
 
-class SupertrendFuturesStrategyV5(IStrategy):
+class SupertrendFuturesStrategyV5_1(IStrategy):
     """
-    Supertrend + EMA 趋势跟踪策略 (合约版 V5)
+    Supertrend + EMA 趋势跟踪策略 (合约版 V5.1)
     
-    改进点 (2026-02-22):
-    1. ✅ 时间周期优化: 15m -> 30m
-    2. ✅ 参数优化: ATR period 11, multiplier 2.884
-    3. 📋 分批止盈: 3%/5%/10% 三级止盈
-    4. 📋 RSI 过滤加强: 避免极端超买超卖
-    5. 📋 动态仓位: 基于 ATR 调整
+    V5.1 优化 (2026-02-22):
+    - 基于 V5 回测反馈调整
+    - 放宽 RSI 过滤 (70→75, 30→25)
+    - 调整动态仓位阈值 (更容易正常仓位)
+    - 延后止盈 (3%→5%, 5%→8%, 10%→15%)
+    
+    目标：
+    - 保持胜率 (68%+)
+    - 提升收益 (目标 10%+)
+    - 降低回撤 (目标 <8%)
     """
     
     INTERFACE_VERSION = 3
 
-    # 参数 - 30m 优化后（90天数据，2026-02-22）
+    # 参数 - 30m 优化后
     atr_period = IntParameter(5, 30, default=11, space="buy")
     atr_multiplier = DecimalParameter(2.0, 5.0, default=2.884, space="buy")
     ema_fast = IntParameter(5, 50, default=48, space="buy")
     ema_slow = IntParameter(20, 200, default=151, space="buy")
 
-    # ADX 参数 - 30m 优化后
+    # ADX 参数
     adx_threshold_long = IntParameter(20, 35, default=33, space="buy")
     adx_threshold_short = IntParameter(15, 30, default=23, space="buy")
     
-    # RSI 参数 - 新增
-    rsi_upper_limit = IntParameter(65, 80, default=70, space="buy")  # 做多时RSI上限
-    rsi_lower_limit = IntParameter(20, 35, default=30, space="buy")  # 做空时RSI下限
+    # RSI 参数 - 放宽
+    rsi_upper_limit = IntParameter(65, 80, default=75, space="buy")  # V5: 70 → 75
+    rsi_lower_limit = IntParameter(20, 35, default=25, space="buy")  # V5: 30 → 25
     
-    # 止盈参数 - 新增
-    tp_level_1 = DecimalParameter(0.02, 0.05, default=0.03, space="sell")  # 一级止盈 3%
-    tp_level_2 = DecimalParameter(0.04, 0.08, default=0.05, space="sell")  # 二级止盈 5%
-    tp_level_3 = DecimalParameter(0.08, 0.15, default=0.10, space="sell")  # 三级止盈 10%
+    # 止盈参数 - 延后
+    tp_level_1 = DecimalParameter(0.03, 0.07, default=0.05, space="sell")  # V5: 3% → 5%
+    tp_level_2 = DecimalParameter(0.06, 0.10, default=0.08, space="sell")  # V5: 5% → 8%
+    tp_level_3 = DecimalParameter(0.10, 0.20, default=0.15, space="sell")  # V5: 10% → 15%
     
-    # 动态仓位参数 - 新增
-    atr_low_threshold = DecimalParameter(0.02, 0.04, default=0.03, space="buy")   # 低波动阈值
-    atr_high_threshold = DecimalParameter(0.04, 0.06, default=0.05, space="buy")  # 高波动阈值
+    # 动态仓位参数 - 调整
+    atr_low_threshold = DecimalParameter(0.015, 0.035, default=0.025, space="buy")   # V5: 0.03 → 0.025
+    atr_high_threshold = DecimalParameter(0.045, 0.07, default=0.06, space="buy")    # V5: 0.05 → 0.06
 
     minimal_roi = {"0": 0.06}
-    stoploss = -0.03  # 3% (最优止损)
+    stoploss = -0.03
 
-    timeframe = '30m'  # 2026-02-22: 15m -> 30m (回测显示30m表现更优)
+    timeframe = '30m'
 
     trailing_stop = True
     trailing_stop_positive = 0.02
@@ -76,12 +80,8 @@ class SupertrendFuturesStrategyV5(IStrategy):
 
     can_short: bool = True
     leverage_default = 2
-    
-    # 记录止盈状态
-    custom_info_trail = {}
 
     def supertrend(self, dataframe, period=14, multiplier=3):
-        """计算 Supertrend 指标"""
         df = dataframe.copy()
         hl2 = (df['high'] + df['low']) / 2
         atr = ta.ATR(df, timeperiod=period)
@@ -103,7 +103,6 @@ class SupertrendFuturesStrategyV5(IStrategy):
         return min(self.leverage_default, max_leverage)
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """计算技术指标"""
         dataframe['ema_fast'] = ta.EMA(dataframe, timeperiod=self.ema_fast.value)
         dataframe['ema_slow'] = ta.EMA(dataframe, timeperiod=self.ema_slow.value)
         dataframe['supertrend'], dataframe['st_dir'] = self.supertrend(
@@ -115,46 +114,26 @@ class SupertrendFuturesStrategyV5(IStrategy):
         dataframe['adx_neg'] = ta.MINUS_DI(dataframe, timeperiod=14)
         dataframe['atr'] = ta.ATR(dataframe, timeperiod=14)
         dataframe['volume_ma'] = dataframe['volume'].rolling(20).mean()
-
-        # 趋势判断：EMA 200 判断大趋势
         dataframe['ema_200'] = ta.EMA(dataframe, timeperiod=200)
         dataframe['is_uptrend'] = dataframe['close'] > dataframe['ema_200']
         dataframe['is_downtrend'] = dataframe['close'] < dataframe['ema_200']
-        
-        # ATR 占比 (用于动态仓位)
         dataframe['atr_ratio'] = dataframe['atr'] / dataframe['close']
 
         return dataframe
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """
-        做多 - 优化版
-        
-        改进:
-        1. ✅ ADX > 33 趋势强度确认
-        2. ✅ RSI < 70 避免超买
-        3. ✅ 成交量确认
-        4. ✅ EMA 趋势确认
-        5. ✅ 大趋势确认 (EMA 200)
-        """
         dataframe.loc[:, 'enter_long'] = 0
 
         conditions = [
-            # Supertrend 信号
             dataframe['st_dir'] == 1,
-            # EMA 趋势确认
             dataframe['ema_fast'] > dataframe['ema_slow'],
-            # ADX 趋势强度
             dataframe['adx'] > self.adx_threshold_long.value,
             dataframe['adx_pos'] > dataframe['adx_neg'],
-            # RSI 避免极端超买
+            # RSI 放宽到 75
             dataframe['rsi'] < self.rsi_upper_limit.value,
-            dataframe['rsi'] > 20,  # 避免极端超卖
-            # 成交量确认
+            dataframe['rsi'] > 20,
             dataframe['volume'] > dataframe['volume_ma'],
-            # 价格在 Supertrend 上方
             dataframe['close'] > dataframe['supertrend'],
-            # 大趋势确认
             dataframe['is_uptrend'],
         ]
 
@@ -164,7 +143,6 @@ class SupertrendFuturesStrategyV5(IStrategy):
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """做多退出"""
         dataframe.loc[:, 'exit_long'] = 0
         conditions = [dataframe['st_dir'] == -1]
         if conditions:
@@ -172,32 +150,17 @@ class SupertrendFuturesStrategyV5(IStrategy):
         return dataframe
 
     def populate_entry_trend_short(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """
-        做空 - 优化版
-        
-        改进:
-        1. ✅ ADX > 23 趋势强度确认
-        2. ✅ RSI > 30 避免超卖
-        3. ✅ 成交量确认
-        4. ✅ EMA 趋势确认
-        5. ✅ 大趋势确认 (EMA 200)
-        """
         dataframe.loc[:, 'enter_short'] = 0
 
         conditions = [
-            # Supertrend 信号
             dataframe['st_dir'] == -1,
-            # EMA 趋势确认
             dataframe['ema_fast'] < dataframe['ema_slow'],
-            # ADX 趋势强度
             dataframe['adx'] > self.adx_threshold_short.value,
             dataframe['adx_neg'] > dataframe['adx_pos'],
-            # RSI 避免极端超卖
+            # RSI 放宽到 25
             dataframe['rsi'] > self.rsi_lower_limit.value,
-            dataframe['rsi'] < 80,  # 避免极端超买
-            # 价格在 Supertrend 下方
+            dataframe['rsi'] < 80,
             dataframe['close'] < dataframe['supertrend'],
-            # 大趋势确认
             dataframe['is_downtrend'],
         ]
 
@@ -207,7 +170,6 @@ class SupertrendFuturesStrategyV5(IStrategy):
         return dataframe
 
     def populate_exit_trend_short(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """做空退出"""
         dataframe.loc[:, 'exit_short'] = 0
         conditions = [dataframe['st_dir'] == 1]
         if conditions:
@@ -218,12 +180,12 @@ class SupertrendFuturesStrategyV5(IStrategy):
                            proposed_stake: float, min_stake: Optional[float], max_stake: float,
                            entry_tag: Optional[str], side: str, **kwargs) -> float:
         """
-        动态仓位管理 - 基于 ATR
+        动态仓位管理 - 调整后
         
-        原理:
-        - 高波动 (ATR > 5%) → 小仓位 (50%)
-        - 中波动 (ATR 3-5%) → 中仓位 (75%)
-        - 低波动 (ATR < 3%) → 正常仓位 (100%)
+        更容易使用正常仓位:
+        - 高波动 (ATR > 6%) → 小仓位 (60%)
+        - 中波动 (ATR 2.5-6%) → 中仓位 (80%)
+        - 低波动 (ATR < 2.5%) → 正常仓位 (100%)
         """
         dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
         
@@ -232,21 +194,13 @@ class SupertrendFuturesStrategyV5(IStrategy):
         
         atr_ratio = dataframe['atr_ratio'].iloc[-1]
         
-        # 根据波动率调整仓位
         if atr_ratio > self.atr_high_threshold.value:
-            # 高波动 - 减半仓位
-            stake = proposed_stake * 0.5
-            logger.info(f"{pair} 高波动 (ATR ratio: {atr_ratio:.4f}), 仓位减半")
+            stake = proposed_stake * 0.6  # V5: 0.5 → 0.6
         elif atr_ratio > self.atr_low_threshold.value:
-            # 中波动 - 75% 仓位
-            stake = proposed_stake * 0.75
-            logger.info(f"{pair} 中波动 (ATR ratio: {atr_ratio:.4f}), 仓位 75%")
+            stake = proposed_stake * 0.8  # V5: 0.75 → 0.8
         else:
-            # 低波动 - 正常仓位
             stake = proposed_stake
-            logger.info(f"{pair} 低波动 (ATR ratio: {atr_ratio:.4f}), 正常仓位")
         
-        # 确保不低于最小值
         if min_stake is not None and stake < min_stake:
             return min_stake
         
@@ -255,54 +209,35 @@ class SupertrendFuturesStrategyV5(IStrategy):
     def custom_exit(self, pair: str, trade: Trade, current_time: datetime, 
                    current_rate: float, current_profit: float, **kwargs) -> Optional[str]:
         """
-        分批止盈逻辑
+        分批止盈 - 延后版
         
-        改进:
-        - 3% 利润 → 部分止盈
-        - 5% 利润 → 加速止盈
-        - 10% 利润 → 全部平仓
+        让利润跑更远:
+        - 5% 利润 → 部分止盈
+        - 8% 利润 → 加速止盈
+        - 15% 利润 → 全部平仓
         """
         dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
         
         if len(dataframe) < 1:
             return None
         
-        # 获取当前利润百分比
         profit_pct = current_profit
         
-        # 三级止盈
+        # 延后止盈
         if profit_pct >= self.tp_level_3.value:
-            logger.info(f"{pair} 达到三级止盈 {profit_pct:.2%} (目标: {self.tp_level_3.value:.2%})")
             return f'profit_{int(self.tp_level_3.value*100)}pct'
-        
         elif profit_pct >= self.tp_level_2.value:
-            logger.info(f"{pair} 达到二级止盈 {profit_pct:.2%} (目标: {self.tp_level_2.value:.2%})")
             return f'profit_{int(self.tp_level_2.value*100)}pct'
-        
         elif profit_pct >= self.tp_level_1.value:
-            logger.info(f"{pair} 达到一级止盈 {profit_pct:.2%} (目标: {self.tp_level_1.value:.2%})")
             return f'profit_{int(self.tp_level_1.value*100)}pct'
         
         # RSI 反转信号
         last_candle = dataframe.iloc[-1]
         if trade.is_short:
-            # 做空时 RSI 超卖
-            if last_candle['rsi'] < 30:
-                logger.info(f"{pair} RSI 超卖反转 (RSI: {last_candle['rsi']:.2f})")
+            if last_candle['rsi'] < 25:  # V5: 30 → 25
                 return 'rsi_oversold_exit'
         else:
-            # 做多时 RSI 超买
-            if last_candle['rsi'] > 70:
-                logger.info(f"{pair} RSI 超买反转 (RSI: {last_candle['rsi']:.2f})")
+            if last_candle['rsi'] > 75:  # V5: 70 → 75
                 return 'rsi_overbought_exit'
         
         return None
-    
-    def confirm_trade_entry(self, pair: str, order_type: str, amount: float, 
-                           rate: float, time_in_force: str, current_time: datetime,
-                           entry_tag: Optional[str], side: str, **kwargs) -> bool:
-        """
-        入场确认 - 记录交易信息
-        """
-        logger.info(f"确认入场: {pair} | 方向: {side} | 金额: {amount:.2f} | 价格: {rate:.2f}")
-        return True
