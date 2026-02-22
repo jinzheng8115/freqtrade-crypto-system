@@ -1,158 +1,258 @@
-# Freqtrade Crypto Futures Trading System
+<div align="center">
 
-> **Current Strategy**: SupertrendFuturesStrategyV8 + XRP  
-> **Last Updated**: 2026-02-22  
-> **Status**: ✅ Running in Dry Run Mode
+# Freqtrade 加密货币交易系统
+# Freqtrade Crypto Trading System
 
----
+[![Freqtrade](https://img.shields.io/badge/Freqtrade-2026.1-blue)](https://github.com/freqtrade/freqtrade)
+[![Python](https://img.shields.io/badge/Python-3.11-green)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Running-brightgreen)]()
 
-## 📊 Current Configuration
+**[中文文档](#中文) | [English Docs](#english)**
 
-### V8+XRP Strategy (Latest - 2026-02-22)
-
-**Trading Pairs**: BTC/ETH/DOGE/XRP  
-**Timeframe**: 30m  
-**Max Positions**: 2  
-**Expected Performance** (90 days):
-- ✅ **Return**: +10.17%
-- ✅ **Win Rate**: 70.0%
-- ✅ **Max Drawdown**: 3.55%
-
-### Key Improvements
-
-Compared to V4:
-- ✅ Return: +7.47% → **+10.17%** (+2.70%)
-- ✅ Win Rate: 63.6% → **70.0%** (+6.4%)
-- ✅ Drawdown: 5.35% → **3.55%** (-1.80%)
+</div>
 
 ---
 
-## 🚀 Quick Start
+<a name="中文"></a>
+## 📖 中文文档
 
-### 1. Start the Bot
+### 当前策略 | Current Strategy
+
+**V8+XRP** (2026-02-22)
+
+| 指标 Metric | 数值 Value |
+|------------|-----------|
+| **预期收益 Expected Return** | **+10.17%** (90天/90 days) |
+| **胜率 Win Rate** | **70.0%** |
+| **最大回撤 Max Drawdown** | **3.55%** |
+| **交易频率 Trade Frequency** | 2-3次/周 (2-3/week) |
+
+### 交易对 | Trading Pairs
+
+```
+BTC/USDT:USDT
+ETH/USDT:USDT
+DOGE/USDT:USDT
+XRP/USDT:USDT
+```
+
+### 快速开始 | Quick Start
 
 ```bash
-cd /root/freqtrade
+# 启动机器人 | Start bot
 docker compose up -d freqtrade-futures
-```
 
-### 2. Check Status
-
-```bash
-# Quick check
-./scripts/quick-check-v8-xrp.sh
-
-# Detailed monitoring
-./scripts/monitor-v8-xrp.sh
-```
-
-### 3. View Logs
-
-```bash
+# 查看状态 | Check status
 docker logs -f freqtrade-futures
+
+# 快速检查 | Quick check
+./scripts/quick-check-v8-xrp.sh
 ```
 
----
+### 关键优化 | Key Optimizations
 
-## 📈 Strategy Evolution
+#### V8 策略改进 | V8 Strategy Improvements
 
-### Version History
-
-| Version | Date | Return | Win Rate | Drawdown | Notes |
-|---------|------|--------|----------|----------|-------|
-| **V8+XRP** ⭐ | 2026-02-22 | **+10.17%** | **70.0%** | **3.55%** | Current optimal |
-| V8(SOL) | 2026-02-22 | +8.91% | 69.4% | 4.94% | Multi-factor gentle |
-| V4 | 2026-02-22 | +7.47% | 63.6% | 5.35% | Baseline optimized |
-
-### Key Optimizations
-
-#### V8 Improvements
-1. **Alpha#101 Filter** (0.1 threshold)
-   - Daily trend strength indicator
-   - Filters false breakouts
-
-2. **RSI Range** (40-75)
-   - Avoids extreme zones
-   - Improves signal quality
-
-3. **Volume Confirmation** (1.2x average)
-   - Ensures liquidity
-   - Not too strict (1.5x)
-
-4. **Trend Strength Score**
-   - ADX > 30: +1 point
-   - ADX > 35: +2 points
-   - Minimum required: 1 point
-
-5. **Volatility Control**
-   - ATR/Close < 0.05
-   - Avoids extreme volatility
+1. **Alpha#101 过滤** - 日内趋势强度
+2. **RSI 温和范围** (40-75) - 避免极端
+3. **成交量确认** (1.2x) - 确保流动性
+4. **趋势强度评分** - 信号质量控制
+5. **波动率控制** (< 0.05) - 降低风险
 
 #### XRP vs SOL
 
-| Metric | SOL | **XRP** | Improvement |
-|--------|-----|---------|-------------|
-| Return | +8.91% | **+10.17%** | **+1.26%** |
-| Win Rate | 69.4% | **70.0%** | **+0.6%** |
-| Drawdown | 4.94% | **3.55%** | **-1.39%** |
+| 指标 Metric | SOL | XRP ⭐ | 改善 Improvement |
+|------------|-----|-------|-----------------|
+| 收益 Return | +8.91% | **+10.17%** | +1.26% |
+| 胜率 Win Rate | 69.4% | **70.0%** | +0.6% |
+| 回撤 Drawdown | 4.94% | **3.55%** | -1.39% |
 
-**Why XRP is Better**:
-- Better liquidity/volatility balance
-- Clearer trends
-- Fewer false breakouts
-- Better synergy with BTC/ETH/DOGE
+### 性能对比 | Performance Comparison
+
+| 版本 Version | 收益 Return | 胜率 Win Rate | 回撤 Drawdown |
+|-------------|------------|--------------|--------------|
+| **V8+XRP** ⭐ | **+10.17%** | **70.0%** | **3.55%** |
+| V8(SOL) | +8.91% | 69.4% | 4.94% |
+| V4 | +7.47% | 63.6% | 5.35% |
+
+### 监控脚本 | Monitoring Scripts
+
+#### 快速状态检查 | Quick Status Check
+```bash
+./scripts/quick-check-v8-xrp.sh
+```
+
+#### 详细性能监控 | Detailed Monitoring
+```bash
+./scripts/monitor-v8-xrp.sh
+```
+
+### 预期表现 | Expected Performance
+
+| 时间 Time | 收益 Return | 交易次数 Trades |
+|----------|------------|----------------|
+| 1周 1 week | +0.85% | 2-3 |
+| 1月 1 month | +3.39% | ~10 |
+| 3月 3 months | +10.17% | ~30 |
+| 6月 6 months | +20.34% | ~60 |
+
+### 文档 | Documentation
+
+- 📖 [完整文档 Full Documentation](README_CN.md)
+- 📊 [V8+XRP 优化总结 Optimization Summary](docs/v8-xrp-optimization-summary.md)
+- 🔬 [研究文档 Research Docs](docs/)
+
+### 更新日志 | Changelog
+
+#### v8.0 (2026-02-22)
+- ✅ 添加 Alpha#101 多因子过滤
+- ✅ 优化交易对 (SOL→XRP)
+- ✅ 改善风险指标 (3.55% 回撤)
+- ✅ 添加监控脚本
 
 ---
 
-## 📁 Project Structure
+<a name="english"></a>
+## 📖 English Documentation
+
+### Current Strategy
+
+**V8+XRP** (2026-02-22)
+
+| Metric | Value |
+|--------|-------|
+| **Expected Return** | **+10.17%** (90 days) |
+| **Win Rate** | **70.0%** |
+| **Max Drawdown** | **3.55%** |
+| **Trade Frequency** | 2-3/week |
+
+### Trading Pairs
+
+```
+BTC/USDT:USDT
+ETH/USDT:USDT
+DOGE/USDT:USDT
+XRP/USDT:USDT
+```
+
+### Quick Start
+
+```bash
+# Start bot
+docker compose up -d freqtrade-futures
+
+# Check status
+docker logs -f freqtrade-futures
+
+# Quick check
+./scripts/quick-check-v8-xrp.sh
+```
+
+### Key Optimizations
+
+#### V8 Strategy Improvements
+
+1. **Alpha#101 Filter** - Daily trend strength
+2. **RSI Range** (40-75) - Avoid extremes
+3. **Volume Confirmation** (1.2x) - Ensure liquidity
+4. **Trend Strength Score** - Signal quality control
+5. **Volatility Control** (< 0.05) - Reduce risk
+
+#### XRP vs SOL
+
+| Metric | SOL | XRP ⭐ | Improvement |
+|--------|-----|-------|-------------|
+| Return | +8.91% | **+10.17%** | +1.26% |
+| Win Rate | 69.4% | **70.0%** | +0.6% |
+| Drawdown | 4.94% | **3.55%** | -1.39% |
+
+### Performance Comparison
+
+| Version | Return | Win Rate | Drawdown |
+|---------|--------|----------|----------|
+| **V8+XRP** ⭐ | **+10.17%** | **70.0%** | **3.55%** |
+| V8(SOL) | +8.91% | 69.4% | 4.94% |
+| V4 | +7.47% | 63.6% | 5.35% |
+
+### Monitoring Scripts
+
+#### Quick Status Check
+```bash
+./scripts/quick-check-v8-xrp.sh
+```
+
+#### Detailed Monitoring
+```bash
+./scripts/monitor-v8-xrp.sh
+```
+
+### Expected Performance
+
+| Time | Return | Trades |
+|------|--------|--------|
+| 1 week | +0.85% | 2-3 |
+| 1 month | +3.39% | ~10 |
+| 3 months | +10.17% | ~30 |
+| 6 months | +20.34% | ~60 |
+
+### Documentation
+
+- 📖 [Full Documentation](README_EN.md)
+- 📊 [V8+XRP Optimization Summary](docs/v8-xrp-optimization-summary.md)
+- 🔬 [Research Docs](docs/)
+
+### Changelog
+
+#### v8.0 (2026-02-22)
+- ✅ Added Alpha#101 multi-factor filter
+- ✅ Optimized trading pairs (SOL→XRP)
+- ✅ Improved risk metrics (3.55% drawdown)
+- ✅ Added monitoring scripts
+
+---
+
+## 📊 Project Structure | 项目结构
 
 ```
 freqtrade-crypto-system/
-├── strategies/
-│   ├── SupertrendFuturesStrategyV8.py      # Current strategy ⭐
-│   ├── SupertrendFuturesStrategyV4.py      # Previous version
-│   └── ...other versions
-├── scripts/
-│   ├── quick-check-v8-xrp.sh               # Quick status check
-│   ├── monitor-v8-xrp.sh                   # Detailed monitoring
-│   └── check-status-with-push.sh           # Telegram push
-├── user_data/
-│   ├── config_futures.json                 # Futures config
-│   ├── config_spot.json                    # Spot config
-│   └── strategies/                         # Strategy parameters
-├── docs/
-│   ├── v8-xrp-optimization-summary.md      # Optimization summary
-│   └── README.md                           # This file
-└── docker-compose.yml
+├── strategies/              # Strategy files
+│   ├── SupertrendFuturesStrategyV8.py  ⭐ Current
+│   ├── SupertrendFuturesStrategyV4.py
+│   └── ...
+├── scripts/                 # Monitoring scripts
+│   ├── quick-check-v8-xrp.sh
+│   ├── monitor-v8-xrp.sh
+│   └── README.md
+├── user_data/               # Configuration
+│   ├── config_futures.json
+│   ├── config_spot.json
+│   └── strategies/
+├── docs/                    # Documentation
+│   ├── v8-xrp-optimization-summary.md
+│   └── README.md
+├── README.md               # This file (双语/bilingual)
+├── README_CN.md            # 中文详细文档
+└── README_EN.md            # English detailed docs
 ```
 
 ---
 
-## 🔧 Configuration
+## 🔧 Configuration | 配置
 
-### Current Settings
+### Current Settings | 当前设置
 
 ```json
 {
   "strategy": "SupertrendFuturesStrategyV8",
   "timeframe": "30m",
-  "trading_pairs": [
-    "BTC/USDT:USDT",
-    "ETH/USDT:USDT",
-    "DOGE/USDT:USDT",
-    "XRP/USDT:USDT"
-  ],
   "max_positions": 2,
   "stake_amount": 400,
-  "total_capital": 1000,
-  "stoploss": -0.03,
-  "trailing_stop": true,
-  "trailing_stop_positive": 0.02,
-  "trailing_stop_positive_offset": 0.03
+  "stoploss": -0.03
 }
 ```
 
-### Strategy Parameters
+### Strategy Parameters | 策略参数
 
 ```python
 {
@@ -168,97 +268,14 @@ freqtrade-crypto-system/
 
 ---
 
-## 📊 Monitoring & Tracking
+## 🚨 Alert Rules | 告警规则
 
-### Monitoring Scripts
-
-#### Quick Status Check
-```bash
-./scripts/quick-check-v8-xrp.sh
-```
-Shows: Container status, positions, P/L
-
-#### Detailed Monitoring
-```bash
-./scripts/monitor-v8-xrp.sh
-```
-Shows: Full performance stats, recent trades, account status
-
-### Expected Performance
-
-| Timeframe | Expected Return | Expected Trades |
-|-----------|----------------|-----------------|
-| 1 week | +0.85% | 2-3 trades |
-| 1 month | +3.39% | ~10 trades |
-| 3 months | +10.17% | ~30 trades |
-| 6 months | +20.34% | ~60 trades |
-
-### Performance Tracking
-
-Tracking file: `/root/.openclaw/agents/freqtrade/tracking/v8-xrp-performance.md`
-
-Updated weekly with:
-- Trade count and win rate
-- Cumulative returns
-- Maximum drawdown
-- XRP vs SOL comparison
-
----
-
-## 🔬 Research & Backtesting
-
-### Key Studies
-
-1. **Walk-Forward Validation**
-   - 180-day backtest validation
-   - 3-segment performance analysis
-   - Market regime identification
-
-2. **Trading Pair Optimization**
-   - Tested 9 different 4-pair combinations
-   - Found BTC+ETH+DOGE core triangle
-   - XRP outperforms SOL
-
-3. **Multi-Factor Testing**
-   - V5-V7 versions tested
-   - V8 emerged as optimal
-   - Quality > Quantity
-
-### Research Documents
-
-- `docs/walk-forward-report.md` - 180-day validation
-- `docs/v8-expansion-test-report.md` - Pair expansion tests
-- `docs/v8-pair-optimization.md` - SOL→XRP analysis
-
----
-
-## ⚙️ Maintenance
-
-### Daily Tasks
-- ✅ Check container status
-- ✅ Monitor for alerts
-- ✅ Review new trades
-
-### Weekly Tasks
-- ✅ Run detailed monitoring
-- ✅ Update performance tracking
-- ✅ Compare actual vs expected
-
-### Monthly Tasks
-- ✅ Full performance review
-- ✅ Strategy validation
-- ✅ Parameter adjustment (if needed)
-
----
-
-## 🚨 Alert Rules
-
-### Immediate Notification
+### Immediate Notification | 立即通知
 - ❌ Weekly loss > -5%
 - ❌ Bot stopped running
 - ❌ Max drawdown > 8%
 
-### Warning Alerts
+### Warning Alerts | 警告提醒
 - ⚠️ Monthly return < +2%
 - ⚠️ Win rate < 60%
 - ⚠️ Max drawdown > 6%
@@ -266,168 +283,60 @@ Updated weekly with:
 
 ---
 
-## 📚 Documentation
+## 🎯 Roadmap | 路线图
 
-### Strategy Documentation
-- **V8+XRP Summary**: `docs/v8-xrp-optimization-summary.md`
-- **Walk-Forward Report**: `research/walk-forward-report.md`
-- **Pair Optimization**: `research/v8-pair-optimization.md`
+### Short Term (1-2 weeks) | 短期
+- Monitor V8+XRP performance
+- Collect trade samples
+- Validate actual vs expected
 
-### Code Documentation
-- Each strategy file includes detailed comments
-- Parameter explanations in code
-- Backtest methodology documented
+### Medium Term (1-3 months) | 中期
+- Signal quality scoring (optional)
+- Market regime identification (optional)
+- Strategy fine-tuning
 
----
-
-## 🔄 Recent Changes
-
-### 2026-02-22 - V8+XRP Deployment
-
-**Changes**:
-- ✅ Upgraded to V8 strategy (multi-factor gentle)
-- ✅ Switched trading pairs: SOL → XRP
-- ✅ Added Alpha#101 and trend scoring
-- ✅ Created monitoring scripts
-
-**Commits**:
-- `ddd1b81` - V8 strategy + pair optimization
-- `ebbbee0` - Documentation update
-
-**Results**:
-- Expected return: +10.17% (90 days)
-- Expected win rate: 70%
-- Expected drawdown: 3.55%
+### Long Term (3-6 months) | 长期
+- Machine learning integration
+- Multi-strategy system
+- Risk management optimization
 
 ---
 
-## 🎯 Next Steps
+## 📞 Support | 支持
 
-### Short Term (1-2 weeks)
-1. Monitor V8+XRP performance
-2. Collect trade samples
-3. Validate actual vs expected
-
-### Medium Term (1-3 months)
-1. Signal quality scoring (optional)
-2. Market regime identification (optional)
-3. Strategy fine-tuning
-
-### Long Term (3-6 months)
-1. Machine learning integration
-2. Multi-strategy system
-3. Risk management optimization
-
----
-
-## 📞 Support
-
-### Useful Commands
+### Useful Commands | 常用命令
 
 ```bash
-# Start bot
+# Start bot | 启动机器人
 docker compose up -d freqtrade-futures
 
-# Stop bot
+# Stop bot | 停止机器人
 docker compose down freqtrade-futures
 
-# View logs
+# View logs | 查看日志
 docker logs -f freqtrade-futures
 
-# Quick check
+# Quick check | 快速检查
 ./scripts/quick-check-v8-xrp.sh
 
-# Detailed monitoring
+# Detailed monitoring | 详细监控
 ./scripts/monitor-v8-xrp.sh
-
-# Backtesting
-docker exec freqtrade-futures freqtrade backtesting \
-  --strategy SupertrendFuturesStrategyV8 \
-  --timeframe 30m \
-  --timerange 20251124-20260222 \
-  --config user_data/config_futures.json
 ```
 
-### Troubleshooting
-
-**Bot not running**:
-```bash
-docker compose restart freqtrade-futures
-```
-
-**No trades for a while**:
-- Normal for V8 (3 days/trade average)
-- Check market conditions
-- Verify config correct
-
-**High drawdown**:
-- Check if > 6% (warning)
-- Review recent trades
-- Consider pausing if > 8%
-
 ---
 
-## 📊 Performance History
-
-### Backtested Results (90 days)
-
-| Version | Return | Win Rate | Drawdown | Trades |
-|---------|--------|----------|----------|--------|
-| **V8+XRP** ⭐ | **+10.17%** | **70.0%** | **3.55%** | 30 |
-| V8(SOL) | +8.91% | 69.4% | 4.94% | 36 |
-| V4 | +7.47% | 63.6% | 5.35% | 55 |
-
-### Live Performance
-
-*Tracking started: 2026-02-22*
-
-*See tracking file for live results*
-
----
-
-## 🤝 Contributing
-
-### Strategy Development Process
-
-1. **Research** → Analyze market conditions
-2. **Backtest** → Validate on historical data
-3. **Optimize** → Fine-tune parameters
-4. **Deploy** → Paper trade first
-5. **Monitor** → Track performance
-6. **Iterate** → Continuous improvement
-
-### Code Style
-
-- Clear variable names
-- Comprehensive comments
-- Modular functions
-- Error handling
-
----
-
-## 📄 License
+## 📄 License | 许可证
 
 Private repository for personal use.
 
 ---
 
-## 📝 Changelog
+<div align="center">
 
-### v8.0 (2026-02-22)
-- Added Alpha#101 multi-factor filter
-- Optimized trading pairs (SOL→XRP)
-- Improved risk metrics (3.55% drawdown)
-- Added monitoring scripts
-- Comprehensive documentation
+**Last Updated | 最后更新**: 2026-02-22 17:15  
+**Version | 版本**: v8.0  
+**Status | 状态**: ✅ Running | 运行中
 
-### v4.0 (2026-02-21)
-- Timeframe optimization (15m→30m)
-- Parameter optimization via hyperopt
-- Improved from -10.23% to +7.47%
+**[⬆ Back to Top | 返回顶部](#freqtrade-加密货币交易系统)**
 
----
-
-**Last Updated**: 2026-02-22 17:05  
-**Version**: v8.0  
-**Status**: ✅ Running  
-**Next Review**: 2026-02-29
+</div>
