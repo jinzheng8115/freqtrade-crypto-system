@@ -1,5 +1,5 @@
-# SupertrendFuturesStrategyV8_2 - 平衡版
-# 在V8基础上，只放宽最关键的指标
+# SupertrendFuturesStrategyV8_2 - 市场环境自适应版
+# 基于V8.1，添加牛熊市识别和动态调整
 
 import numpy as np
 import pandas as pd
@@ -17,37 +17,41 @@ logger = logging.getLogger(__name__)
 
 class SupertrendFuturesStrategyV8_2(IStrategy):
     """
-    V8.2: 平衡版（收益 + 频率）
+    V8.2: 市场环境自适应版
     
-    基于V8，只放宽最关键的1个指标：
+    新增功能：
+    1. 市场环境识别（日线趋势）
+       - 牛市：价格 > EMA200，做多优先
+       - 熊市：价格 < EMA200，做空优先
+       - 震荡：横盘整理，减少交易
     
-    V8.1问题：
-    - 放宽太多，信号质量下降
-    - 收益和胜率都不如V4
+    2. 动态条件调整
+       - 牛市：放宽做多ADX(30)，收紧做空ADX(35)
+       - 熊市：放宽做空ADX(20)，收紧做多ADX(40)
+       - 震荡：ADX要求35+
     
-    V8.2策略：
-    1. 保持V8的所有核心过滤
-    2. **只放宽Alpha#101阈值**: 0.1 → 0.07 (中等宽松)
-    3. 其他指标保持V8设置
+    3. 杠杆动态调整
+       - 顺势交易：2x杠杆
+       - 逆势交易：1x杠杆
     
-    目标:
-    - 交易次数: 36 → 45 (提升25%)
-    - 收益: 保持8%+
-    - 胜率: 保持65%+
+    基础参数继承V8.1优化结果
     """
     
     INTERFACE_VERSION = 3
 
-    # V4最优参数
-    atr_period = IntParameter(5, 30, default=11, space="buy")
-    atr_multiplier = DecimalParameter(2.0, 5.0, default=2.884, space="buy")
-    ema_fast = IntParameter(5, 50, default=48, space="buy")
-    ema_slow = IntParameter(20, 200, default=151, space="buy")
-    adx_threshold_long = IntParameter(20, 35, default=33, space="buy")
-    adx_threshold_short = IntParameter(15, 30, default=23, space="buy")
+    # V8.1 优化参数（从Hyperopt结果）
+    atr_period = IntParameter(5, 30, default=21, space="buy")
+    atr_multiplier = DecimalParameter(2.0, 5.0, default=4.622, space="buy")
+    ema_fast = IntParameter(5, 50, default=21, space="buy")
+    ema_slow = IntParameter(20, 200, default=47, space="buy")
+    adx_threshold_long = IntParameter(20, 40, default=34, space="buy")
+    adx_threshold_short = IntParameter(15, 35, default=23, space="buy")
+    alpha_threshold = DecimalParameter(0.02, 0.15, default=0.118, space="buy")
     
-    # V8.2优化参数
-    alpha_threshold = DecimalParameter(0.05, 0.12, default=0.07, space="buy")  # V8: 0.1, V8.1: 0.05
+    # V8.2 新增参数 - 市场环境
+    trend_lookback = IntParameter(50, 200, default=100, space="buy")  # 趋势判断周期
+    bear_adx_bonus = IntParameter(5, 15, default=10, space="buy")  # 熊市做空ADX放宽
+    bull_adx_penalty = IntParameter(5, 15, default=10, space="buy")  # 牛市做空ADX收紧
 
     minimal_roi = {"0": 0.06}
     stoploss = -0.03
@@ -69,6 +73,7 @@ class SupertrendFuturesStrategyV8_2(IStrategy):
     leverage_default = 2
 
     def supertrend(self, dataframe, period=14, multiplier=3):
+        """Supertrend计算"""
         df = dataframe.copy()
         hl2 = (df['high'] + df['low']) / 2
         atr = ta.ATR(df, timeperiod=period)
@@ -86,67 +91,125 @@ class SupertrendFuturesStrategyV8_2(IStrategy):
             supertrend[i] = lowerband.iloc[i] if direction[i] == 1 else upperband.iloc[i]
         return pd.Series(supertrend, index=df.index), pd.Series(direction, index=df.index)
 
+    def detect_market_regime(self, dataframe: DataFrame) -> DataFrame:
+        """
+        检测市场环境
+        返回: 1=牛市, -1=熊市, 0=震荡
+        """
+        # 使用长期EMA判断趋势
+        dataframe['ema_trend'] = ta.EMA(dataframe['close'], timeperiod=self.trend_lookback.value)
+        
+        # 价格相对位置
+        price_position = (dataframe['close'] - dataframe['ema_trend']) / dataframe['ema_trend'] * 100
+        
+        # 趋势强度（ADX）
+        adx = ta.ADX(dataframe, timeperiod=14)
+        
+        # 市场环境判断 - 放宽条件
+        conditions = [
+            (price_position > 2) & (adx > 20),   # 牛市：放宽
+            (price_position < -2) & (adx > 20),  # 熊市：放宽
+        ]
+        choices = [1, -1]  # 牛市=1, 熊市=-1
+        
+        dataframe['market_regime'] = np.select(conditions, choices, default=0)
+        
+        return dataframe
+
     def leverage(self, pair, current_time, current_rate, proposed_leverage, max_leverage, entry_tag, side, **kwargs):
-        return min(self.leverage_default, max_leverage)
+        """动态杠杆 - 顺势加仓，逆势减仓"""
+        dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
+        
+        if len(dataframe) < 1:
+            return min(self.leverage_default, max_leverage)
+        
+        last_candle = dataframe.iloc[-1]
+        regime = last_candle.get('market_regime', 0)
+        
+        # 顺势交易：2x杠杆
+        # 逆势交易：1x杠杆
+        # 震荡市：1.5x杠杆
+        if regime == 1 and side == 'long':  # 牛市做多
+            leverage = 2.0
+        elif regime == -1 and side == 'short':  # 熊市做空
+            leverage = 2.0
+        elif regime == 1 and side == 'short':  # 牛市做空（逆势）
+            leverage = 1.0
+        elif regime == -1 and side == 'long':  # 熊市做多（逆势）
+            leverage = 1.0
+        else:  # 震荡市
+            leverage = 1.5
+        
+        return min(leverage, max_leverage)
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        # === V4 核心指标 ===
+        """计算技术指标"""
+        
+        # === V8.1 核心指标 ===
         dataframe['ema_fast'] = ta.EMA(dataframe, timeperiod=self.ema_fast.value)
         dataframe['ema_slow'] = ta.EMA(dataframe, timeperiod=self.ema_slow.value)
         dataframe['supertrend'], dataframe['st_dir'] = self.supertrend(
             dataframe, period=self.atr_period.value, multiplier=self.atr_multiplier.value
         )
-        dataframe['rsi'] = ta.RSI(dataframe, timeperiod=14)
+        
+        # ADX
         dataframe['adx'] = ta.ADX(dataframe, timeperiod=14)
         dataframe['adx_pos'] = ta.PLUS_DI(dataframe, timeperiod=14)
         dataframe['adx_neg'] = ta.MINUS_DI(dataframe, timeperiod=14)
-        dataframe['atr'] = ta.ATR(dataframe, timeperiod=14)
-        dataframe['volume_ma'] = dataframe['volume'].rolling(20).mean()
-        dataframe['ema_200'] = ta.EMA(dataframe, timeperiod=200)
-        dataframe['is_uptrend'] = dataframe['close'] > dataframe['ema_200']
-        dataframe['is_downtrend'] = dataframe['close'] < dataframe['ema_200']
         
-        # === V8 多因子指标 ===
+        # RSI
+        dataframe['rsi'] = ta.RSI(dataframe, timeperiod=14)
+        
+        # 成交量
+        dataframe['volume_ma'] = dataframe['volume'].rolling(window=20).mean()
+        
+        # Alpha#101 (简化版)
         dataframe['alpha_101'] = (
-            (dataframe['close'] - dataframe['open']) / 
-            (dataframe['high'] - dataframe['low'] + 0.001)
+            (dataframe['close'] - dataframe['close'].shift(5)) / dataframe['close'].shift(5) * 100 -
+            (dataframe['volume'] - dataframe['volume'].shift(5)) / dataframe['volume'].shift(5) * 10
         )
-        dataframe['alpha_54'] = (
-            (dataframe['close'] - dataframe['close'].shift(5)) / 
-            dataframe['close'].shift(5)
-        )
-        dataframe['volatility_ratio'] = (
-            dataframe['atr'] / dataframe['close']
-        )
-        dataframe['trend_score'] = 0
-        dataframe.loc[dataframe['adx'] > 30, 'trend_score'] += 1
-        dataframe.loc[dataframe['adx'] > 35, 'trend_score'] += 1
-        dataframe.loc[abs(dataframe['alpha_54']) > 0.05, 'trend_score'] += 1
+        
+        # 趋势判断
+        dataframe['is_uptrend'] = dataframe['close'] > dataframe['supertrend']
+        dataframe['is_downtrend'] = dataframe['close'] < dataframe['supertrend']
+        
+        # 波动率
+        dataframe['volatility_ratio'] = ta.ATR(dataframe, timeperiod=14) / dataframe['close']
+        
+        # === V8.2 新增：市场环境判断 ===
+        dataframe = self.detect_market_regime(dataframe)
         
         return dataframe
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """做多 - V8.2平衡版"""
+        """做多 - 根据市场环境调整条件"""
         dataframe.loc[:, 'enter_long'] = 0
-
+        
+        # 获取当前市场环境
+        regime = dataframe['market_regime'].iloc[-1] if len(dataframe) > 0 else 0
+        
+        # 根据市场环境调整ADX阈值
+        if regime == 1:  # 牛市：放宽做多
+            adx_threshold = self.adx_threshold_long.value - 5
+        elif regime == -1:  # 熊市：收紧做多
+            adx_threshold = self.adx_threshold_long.value + 10
+        else:  # 震荡：标准
+            adx_threshold = self.adx_threshold_long.value
+        
         conditions = [
-            # === V4 核心条件 ===
+            # V8.1 核心条件
             dataframe['st_dir'] == 1,
             dataframe['ema_fast'] > dataframe['ema_slow'],
-            dataframe['adx'] > self.adx_threshold_long.value,
+            dataframe['adx'] > adx_threshold,
             dataframe['adx_pos'] > dataframe['adx_neg'],
             dataframe['close'] > dataframe['supertrend'],
             dataframe['is_uptrend'],
             
-            # === V8 核心过滤（保持不变）===
-            (dataframe['rsi'] > 40) & (dataframe['rsi'] < 75),  # 保持V8
-            dataframe['volume'] > dataframe['volume_ma'] * 1.2,  # 保持V8
-            dataframe['trend_score'] >= 1,  # 保持V8
-            dataframe['volatility_ratio'] < 0.05,  # 保持V8
-            
-            # === V8.2 唯一调整 ===
-            # Alpha#101阈值: 0.1 → 0.07 (中等宽松)
+            # V8.1 多因子
+            (dataframe['rsi'] > 35) & (dataframe['rsi'] < 80),
             dataframe['alpha_101'] > self.alpha_threshold.value,
+            dataframe['volume'] > dataframe['volume_ma'] * 1.1,
+            dataframe['volatility_ratio'] < 0.06,
         ]
 
         if conditions:
@@ -154,30 +217,35 @@ class SupertrendFuturesStrategyV8_2(IStrategy):
 
         return dataframe
 
-    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe.loc[:, 'exit_long'] = 0
-        conditions = [dataframe['st_dir'] == -1]
-        if conditions:
-            dataframe.loc[reduce(lambda x, y: x & y, conditions), 'exit_long'] = 1
-        return dataframe
-
     def populate_entry_trend_short(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """做空 - V8.2平衡版"""
+        """做空 - 根据市场环境调整条件"""
         dataframe.loc[:, 'enter_short'] = 0
-
+        
+        # 获取当前市场环境
+        regime = dataframe['market_regime'].iloc[-1] if len(dataframe) > 0 else 0
+        
+        # 根据市场环境调整ADX阈值
+        if regime == -1:  # 熊市：放宽做空
+            adx_threshold = self.adx_threshold_short.value - self.bear_adx_bonus.value
+        elif regime == 1:  # 牛市：收紧做空
+            adx_threshold = self.adx_threshold_short.value + self.bull_adx_penalty.value
+        else:  # 震荡：标准
+            adx_threshold = self.adx_threshold_short.value
+        
         conditions = [
+            # V8.1 核心条件
             dataframe['st_dir'] == -1,
             dataframe['ema_fast'] < dataframe['ema_slow'],
-            dataframe['adx'] > self.adx_threshold_short.value,
+            dataframe['adx'] > adx_threshold,
             dataframe['adx_neg'] > dataframe['adx_pos'],
             dataframe['close'] < dataframe['supertrend'],
             dataframe['is_downtrend'],
             
-            (dataframe['rsi'] > 25) & (dataframe['rsi'] < 60),
-            dataframe['volume'] > dataframe['volume_ma'] * 1.2,
-            dataframe['trend_score'] >= 1,
-            dataframe['volatility_ratio'] < 0.05,
+            # V8.1 多因子
+            (dataframe['rsi'] > 20) & (dataframe['rsi'] < 65),
             dataframe['alpha_101'] < -self.alpha_threshold.value,
+            dataframe['volume'] > dataframe['volume_ma'] * 1.1,
+            dataframe['volatility_ratio'] < 0.06,
         ]
 
         if conditions:
@@ -185,34 +253,36 @@ class SupertrendFuturesStrategyV8_2(IStrategy):
 
         return dataframe
 
-    def populate_exit_trend_short(self, dataframe: DataFrame, metadata: DataFrame) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        """做多平仓"""
+        dataframe.loc[:, 'exit_long'] = 0
+        conditions = [dataframe['st_dir'] == -1]
+        if conditions:
+            dataframe.loc[reduce(lambda x, y: x & y, conditions), 'exit_long'] = 1
+        return dataframe
+
+    def populate_exit_trend_short(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        """做空平仓"""
         dataframe.loc[:, 'exit_short'] = 0
         conditions = [dataframe['st_dir'] == 1]
         if conditions:
             dataframe.loc[reduce(lambda x, y: x & y, conditions), 'exit_short'] = 1
         return dataframe
 
-
-# === V8.2 调整说明 ===
-"""
-V8.2 vs V8 vs V8.1 对比:
-
-指标          V8      V8.1     V8.2
---------------------------------------------
-Alpha#101    0.1     0.05     0.07   ← 唯一调整
-RSI范围     40-75   35-80    40-75    保持V8
-成交量      1.2倍   1.1倍    1.2倍    保持V8
-趋势评分    >= 1    移除     >= 1     保持V8
-波动率      0.05    0.06     0.05     保持V8
-
-V8.2策略：
-- 只放宽Alpha#101（最关键的日内趋势指标）
-- 其他保持V8的严格过滤
-- 目标：提升交易频率，同时保持V8的高质量
-
-预期效果：
-- 交易次数: 36 → 42-45
-- 收益: 保持8%+
-- 胜率: 66-68%
-- 回撤: < 5%
-"""
+    def confirm_trade_entry(self, pair: str, order_type: str, amount: float, 
+                           rate: float, time_in_force: str, current_time: datetime,
+                           entry_tag: Optional[str], side: str, **kwargs) -> bool:
+        """入场确认"""
+        dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
+        
+        if len(dataframe) < 1:
+            return False
+        
+        last_candle = dataframe.iloc[-1]
+        
+        # 避免极端波动
+        if last_candle['volatility_ratio'] > 0.08:
+            logger.info(f"波动率过高，跳过 {pair}")
+            return False
+        
+        return True

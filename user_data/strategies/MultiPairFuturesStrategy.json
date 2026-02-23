@@ -1,0 +1,42 @@
+{
+  "strategy_name": "MultiPairFuturesStrategy",
+  "params": {
+    "roi": {},
+    "stoploss": {
+      "stoploss": -0.03
+    },
+    "trailing": {
+      "trailing_stop": true,
+      "trailing_stop_positive": 0.02,
+      "trailing_stop_positive_offset": 0.03,
+      "trailing_only_offset_is_reached": true
+    },
+    "max_open_trades": {
+      "max_open_trades": 2
+    },
+    "buy": {
+      "bonk_adx_threshold_long": 27.988,
+      "bonk_alpha_threshold": 0.027,
+      "bonk_atr_multiplier": 3.724,
+      "bonk_ema_fast": 40.203,
+      "bonk_ema_slow": 146.427,
+      "sui_adx_threshold_long": 37.358,
+      "sui_alpha_threshold": 0.038,
+      "sui_atr_multiplier": 4.873,
+      "sui_ema_fast": 53.81,
+      "sui_ema_slow": 160.94,
+      "uni_adx_threshold_long": 26.124,
+      "uni_alpha_threshold": 0.029,
+      "uni_atr_multiplier": 3.648,
+      "uni_ema_fast": 33.659,
+      "uni_ema_slow": 177.734
+    },
+    "sell": {
+      "bonk_adx_threshold_short": 11.294,
+      "sui_adx_threshold_short": 13.507,
+      "uni_adx_threshold_short": 17.449
+    }
+  },
+  "ft_stratparam_v": 1,
+  "export_time": "2026-02-23 04:50:54.883985+00:00"
+}
